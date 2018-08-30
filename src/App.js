@@ -1,21 +1,69 @@
 // @flow
 import React from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Button, DeviceEventEmitter, StyleSheet, Text, View } from 'react-native';
 
-const instructions = Platform.select({
-  ios: 'Press Cmd+R to reload,\nCmd+D or shake for dev menu',
-  android: 'Double tap R on your keyboard to reload,\nShake or press menu button for dev menu',
-});
+import Pedometer from './Pedometer';
 
-const App = () => (
-  <View style={styles.container}>
-    <Text style={styles.welcome}>Welcome to React Native!</Text>
-    <Text style={styles.instructions}>To get started, edit App.js</Text>
-    <Text style={styles.instructions}>{instructions}</Text>
-  </View>
-);
+export default class App extends React.PureComponent<{}> {
+  state = {
+    counting: false,
+    stepCount: 0,
+    stepDetected: 0,
+  };
 
-export default App;
+  componentDidMount() {
+    DeviceEventEmitter.addListener('stepCount', this.addStepCount);
+    DeviceEventEmitter.addListener('stepDetected', this.addStepDetected);
+  }
+
+  componentWillUnmount() {
+    DeviceEventEmitter.removeListener('stepCount', this.addStepCount);
+    DeviceEventEmitter.removeListener('stepDetected', this.addStepDetected);
+  }
+
+  addStepCount = event => {
+    this.setState({ stepCount: event.takenSteps });
+  };
+
+  addStepDetected = () => {
+    this.setState(prevState => ({ stepDetected: prevState.stepDetected + 1 }));
+  };
+
+  toggleCounting = () => {
+    this.setState(
+      prevState => ({ counting: !prevState.counting }),
+      () => {
+        const { counting } = this.state;
+        if (counting) {
+          Pedometer.start();
+        } else {
+          Pedometer.stop();
+        }
+      },
+    );
+  };
+
+  render() {
+    const { counting, stepCount, stepDetected } = this.state;
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.button}>
+          <Button onPress={this.toggleCounting} title={counting ? 'Stop' : 'Start'} />
+        </View>
+
+        <Text style={styles.steps}>
+          Step count:
+          <Text style={styles.count}>{stepCount}</Text>
+        </Text>
+        <Text style={styles.steps}>
+          Step detected events:
+          <Text style={styles.count}>{stepDetected}</Text>
+        </Text>
+      </View>
+    );
+  }
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -24,14 +72,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F5FCFF',
   },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
+
+  button: {
+    marginBottom: 20,
   },
-  instructions: {
+
+  steps: {
+    fontSize: 18,
     textAlign: 'center',
     color: '#333333',
     marginBottom: 5,
+  },
+
+  count: {
+    fontWeight: 'bold',
   },
 });
